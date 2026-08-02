@@ -21,7 +21,7 @@ interface TkObject {
 }
 
 const REACH_RADIUS = 150;
-const OPEN_THRESHOLD = 0.7;
+const OPEN_THRESHOLD = 0.6;
 const FIST_THRESHOLD = 0.42;
 const RELEASE_OPEN_THRESHOLD = 0.85;
 const FRICTION_PER_SEC = 1.4;

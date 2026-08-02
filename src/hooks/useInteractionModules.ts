@@ -10,6 +10,7 @@ import { createParticleFieldModule } from '../modules/particleField';
 import { createAirPortalModule } from '../modules/airPortal';
 import { createGestureHackingModule } from '../modules/gestureHacking';
 import { createMotionEchoModule } from '../modules/motionEcho';
+import { createPhantomFlameModule } from '../modules/phantomFlame';
 import type { InteractionModule, ModuleId } from '../types/modules';
 
 function createAllModules(): Record<ModuleId, InteractionModule> {
@@ -24,6 +25,7 @@ function createAllModules(): Record<ModuleId, InteractionModule> {
     airPortal: createAirPortalModule(),
     gestureHacking: createGestureHackingModule(),
     motionEcho: createMotionEchoModule(),
+    phantomFlame: createPhantomFlameModule(),
   };
 }
 

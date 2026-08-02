@@ -11,7 +11,8 @@ export type ModuleId =
   | 'particleField'
   | 'airPortal'
   | 'gestureHacking'
-  | 'motionEcho';
+  | 'motionEcho'
+  | 'phantomFlame';
 
 export const MODULE_IDS: ModuleId[] = [
   'energyOrb',
@@ -24,6 +25,7 @@ export const MODULE_IDS: ModuleId[] = [
   'airPortal',
   'gestureHacking',
   'motionEcho',
+  'phantomFlame',
 ];
 
 export const MODULE_LABELS: Record<ModuleId, string> = {
@@ -37,6 +39,7 @@ export const MODULE_LABELS: Record<ModuleId, string> = {
   airPortal: 'AIR PORTAL',
   gestureHacking: 'GESTURE HACKING',
   motionEcho: 'MOTION ECHO',
+  phantomFlame: 'PHANTOM FLAME',
 };
 
 export type QualitySetting = 'low' | 'medium' | 'high' | 'ultra' | 'auto';

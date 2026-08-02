@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import LoginScreen from './components/LoginScreen';
 import StartupScreen from './components/StartupScreen';
 import CameraStage, { type CameraStageHandle } from './components/CameraStage';
 import TacticalHUD from './components/TacticalHUD';
@@ -6,6 +7,7 @@ import ControlPanel from './components/ControlPanel';
 import InteractionModulesPanel from './components/InteractionModulesPanel';
 import SettingsPanel from './components/SettingsPanel';
 import { audioEngine } from './services/audioEngine';
+import { hasValidSession, logout } from './services/authService';
 import { speak, setVoiceFeedbackEnabled } from './services/voiceFeedback';
 import { interactionStore, useInteractionState } from './store/interactionStore';
 import { subscribeModuleEvents } from './store/moduleEvents';
@@ -32,6 +34,7 @@ const INITIAL_CAMERA_STATUS: CameraStatusInfo = {
 let logId = 0;
 
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(() => hasValidSession());
   const [systemStarted, setSystemStarted] = useState(false);
   const [hudVisible, setHudVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -100,6 +103,17 @@ export default function App() {
     stageRef.current?.switchFacing();
   }, []);
 
+  const handleLogout = useCallback(() => {
+    stageRef.current?.stopCamera();
+    logout();
+    setSystemStarted(false);
+    setAuthenticated(false);
+  }, []);
+
+  if (!authenticated) {
+    return <LoginScreen onAuthenticated={() => setAuthenticated(true)} />;
+  }
+
   return (
     <div className="app-root">
       {!systemStarted && <StartupScreen onStart={handleStartSystem} />}
@@ -148,6 +162,7 @@ export default function App() {
             onSwitchFacing={handleSwitchFacing}
             onToggleModulesPanel={() => setModulesPanelVisible((v) => !v)}
             onToggleSettingsPanel={() => setSettingsPanelVisible((v) => !v)}
+            onLogout={handleLogout}
           />
         </div>
       )}

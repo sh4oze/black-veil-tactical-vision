@@ -14,8 +14,9 @@ npm install
 npm run dev
 ```
 
-Abra o endereço exibido pelo Vite (por padrão `http://localhost:5173`). A câmera só é solicitada
-depois que você clicar em **INICIAR SISTEMA** na tela inicial.
+Abra o endereço exibido pelo Vite (por padrão `http://localhost:5173`). Antes de tudo, a aplicação
+pede login (ver [Login e segurança](#login-e-segurança) abaixo). Depois de autenticado, a câmera só
+é solicitada quando você clicar em **INICIAR SISTEMA** na tela inicial.
 
 > A câmera exige um **contexto seguro**: `localhost` funciona sem HTTPS; para acessar de outro
 > dispositivo na rede (ex.: celular), é preciso HTTPS ou usar um túnel (ngrok, Tailscale Funnel etc.).
@@ -79,7 +80,7 @@ rede, uma única vez, e ficam em cache do navegador.
 
 ## Interaction Modules
 
-Dez módulos de interação opcionais, todos **desativados por padrão**, ativados individualmente pelo
+Onze módulos de interação opcionais, todos **desativados por padrão**, ativados individualmente pelo
 painel **INTERACTION MODULES** (botão "MÓDULOS") ou pelo **Gesture Menu**. Por padrão apenas um
 módulo fica ativo por vez — ativar um novo desativa o anterior automaticamente — a menos que
 **ALLOW MULTIPLE MODULES** esteja ligado. Todos compartilham os mesmos resultados de rastreamento
@@ -98,6 +99,7 @@ landmarks — nada é "efeito por botão".
 | **Air Portal** | Desenhar um círculo no ar com o indicador (validado pela trajetória real do dedo, não por pose única) abre um portal; a distância entre as mãos redimensiona; dois punhos fecham. |
 | **Gesture Hacking** | Minijogo de níveis progressivos alternando entre tocar nós numerados em ordem (pinça como clique) e manter a palma sobre um "scanner"; timer, ACCESS GRANTED/DENIED, reinício automático ou por palma aberta sustentada. |
 | **Motion Echo** | Ecos translúcidos e defasados do esqueleto das mãos e da posição da cabeça, usando o histórico de landmarks já compartilhado — nenhuma inferência extra. |
+| **Phantom Flame** | Efeito ambiente — nenhum gesto de ativação. Enquanto o módulo está ligado, chamas procedurais envolvem o esqueleto de cada mão detectada e brasas sobem das pontas dos dedos; quanto mais rápido a mão se move, mais intensa e "trilhada" fica a chama (estilo "cavaleiro fantasma"). |
 
 ### Painel de configurações
 
@@ -106,7 +108,7 @@ Botão **CONFIG** abre o painel completo:
 - **Tracking**: liga/desliga Face Tracking, Hand Tracking, Target Reticle, Hand Skeleton e Gesture
   Recognition individualmente (desligar Face/Hand Tracking pausa a respectiva inferência, não só o
   desenho).
-- **Interactions**: os mesmos 10 módulos.
+- **Interactions**: os mesmos 11 módulos.
 - **Visual Quality**: Low / Medium / High / Ultra / Automatic — controla densidade de partículas e
   efeitos secundários (glow, distorção); no modo Automatic a qualidade é recalculada a partir do FPS
   medido em tempo real.
@@ -133,7 +135,7 @@ src/
       impactBus.ts                 pub/sub para reação cross-module a impactos (ex.: Energy Pulse → Shield)
       stubModule.ts                placeholder usado durante o desenvolvimento incremental
   hooks/
-    useInteractionModules.ts       instancia os 10 módulos, liga ativação/desativação ao store
+    useInteractionModules.ts       instancia os 11 módulos, liga ativação/desativação ao store
     useGestureStability.ts         GestureStateMachine: IDLE → DETECTING → ACTIVE → RELEASING → COOLDOWN
     useMotionHistory.ts            histórico de landmarks por mão (velocidade, trajetória, circularidade)
   store/
@@ -185,6 +187,68 @@ src/
   types/
     tracking.ts                 tipos compartilhados
 ```
+
+## Login e segurança
+
+### Login
+
+A aplicação exige autenticação antes de exibir qualquer tela do sistema. Como o projeto **não usa
+banco de dados nem backend por enquanto**, o login é uma credencial única, fixa, validada
+inteiramente no navegador:
+
+- **Usuário (e-mail):** `zanfaust@gmail.com`
+- **Senha:** `QxNCgQ6ESk872RXT`
+
+A sessão dura 8 horas e fica em `sessionStorage` (some ao fechar a aba/janela). Há um botão **SAIR**
+no painel de controle para encerrar a sessão manualmente a qualquer momento.
+
+Para trocar a senha, gere um novo par salt/hash e cole os três valores em
+`src/services/authService.ts` (`AUTHORIZED_EMAIL`, `CREDENTIAL_SALT`, `CREDENTIAL_HASH`):
+
+```bash
+node scripts/generate-auth-hash.mjs seu-email@dominio.com "sua-nova-senha"
+```
+
+### O que isso protege — e o que **não** protege
+
+Sendo direto sobre o limite real disso: **é um portão de acesso local, não um sistema de
+autenticação de verdade.** Com "sem banco de dados por enquanto" como restrição, não existe servidor
+para guardar segredo algum — tudo roda no navegador de quem está na frente da tela. Concretamente:
+
+- A senha nunca é comparada nem guardada em texto puro: é validada como hash SHA-256 salgado
+  (`crypto.subtle.digest`, API nativa do navegador), então abrir o código-fonte não revela a senha
+  diretamente.
+- Tentativas de login erradas são limitadas com backoff exponencial (5 tentativas livres, depois
+  bloqueios crescentes de 15s até 5min), guardado em `localStorage` para sobreviver a recarregamentos
+  — dificulta ataques de força bruta feitos pela própria UI.
+- **Mas**: qualquer pessoa com acesso ao DevTools do navegador pode inspecionar o JS já carregado,
+  alterar o estado do React em memória, ou simplesmente chamar a função que libera o acesso — porque
+  não existe nenhum servidor do outro lado verificando nada. Isso não é um bug corrigível sem
+  backend; é a natureza de qualquer "login" 100% client-side. Trate como uma trava de gaveta, não
+  como um cofre: impede acesso casual (alguém pegando o notebook), não um atacante determinado que já
+  tem acesso à máquina.
+- Se no futuro for necessário um controle de acesso real (múltiplos usuários, revogação de sessão,
+  proteção contra quem tem acesso físico ao navegador), a única forma correta é um backend que
+  valide as credenciais e emita tokens que o cliente não consiga forjar.
+
+### Outras medidas de segurança revisadas
+
+- **Content-Security-Policy** (`index.html`) restringe scripts, conexões e mídia a `'self'` mais os
+  dois hosts do CDN do MediaPipe (`cdn.jsdelivr.net`, `storage.googleapis.com`); bloqueia `object-src`,
+  `base-uri` e `form-action` de origens externas.
+- **Sem `dangerouslySetInnerHTML`, `eval`, `innerHTML` ou `document.write`** em nenhum lugar do
+  código — toda a renderização passa pelo JSX do React ou pela Canvas API, não há vetor de XSS via
+  conteúdo dinâmico.
+- **Dependência do MediaPipe fixada em versão exata** (`@mediapipe/tasks-vision@0.10.14`, não
+  `latest`), reduzindo o risco de uma atualização upstream maliciosa ou quebrada ser puxada sem
+  aviso.
+- **`localStorage`/`sessionStorage` só guardam preferências de UI e o estado de autenticação** —
+  nunca imagem, vídeo, landmark facial/de mão ou qualquer dado biométrico (ver `interactionStore.ts`,
+  que persiste explicitamente apenas `{ allowMultiple, quality, options }`).
+- `npm audit`: 1 vulnerabilidade moderada, no `esbuild`/`vite` (servidor de desenvolvimento apenas,
+  não afeta o build de produção nem é exposta pelo app publicado). Corrigível com
+  `npm audit fix --force`, mas isso instala Vite 8 (breaking change) — decisão deliberadamente
+  deixada para quando o projeto for atualizado com testes de regressão.
 
 ## Limitações técnicas conhecidas
 

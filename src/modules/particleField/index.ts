@@ -114,7 +114,7 @@ export function createParticleFieldModule(): InteractionModule {
         return {
           pos,
           pinchPos,
-          repel: openness > 0.75,
+          repel: openness > 0.62,
           attract: openness < 0.4,
           pinch: isPinching(hand, context.sensitivity),
           curl: estimateCurl(hand, context),

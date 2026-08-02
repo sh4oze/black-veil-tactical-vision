@@ -121,6 +121,97 @@ button {
   color: #5c6f60;
 }
 
+/* ---------------------------------- Login screen ---------------------------------- */
+
+.login-content {
+  max-width: 420px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  text-align: left;
+  margin-top: 0.4rem;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.login-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: var(--bv-cold-blue);
+  opacity: 0.9;
+}
+
+.login-input {
+  background: rgba(8, 14, 10, 0.7);
+  border: 1px solid rgba(125, 211, 92, 0.3);
+  color: #d7ffe0;
+  font: inherit;
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
+  padding: 0.65rem 0.8rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-input:focus {
+  border-color: var(--bv-military-green-bright);
+  box-shadow: 0 0 0 1px rgba(125, 211, 92, 0.35);
+}
+
+.login-input:disabled {
+  opacity: 0.5;
+}
+
+.login-password-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.login-password-row .login-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.login-toggle-visibility {
+  background: transparent;
+  border: 1px solid rgba(125, 211, 92, 0.3);
+  color: #9fb5a3;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  padding: 0 0.7rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.login-toggle-visibility:hover {
+  color: var(--bv-military-green-bright);
+  border-color: var(--bv-military-green-bright);
+}
+
+.login-error {
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.login-lockout {
+  color: #ff8f8f;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  text-align: center;
+  margin: 0;
+}
+
+.login-form .btn-tactical-primary {
+  margin-top: 0.2rem;
+}
+
 /* ---------------------------------- Tactical shell / stage ---------------------------------- */
 
 .tactical-shell {
