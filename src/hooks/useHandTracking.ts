@@ -3,7 +3,12 @@ import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { getHandLandmarker } from '../services/handLandmarker';
 import { SmoothedLandmarks } from '../utils/smoothing';
 import { detectHandShape, GestureStabilizer } from '../utils/gestureDetection';
+import { interactionStore } from '../store/interactionStore';
 import type { Handedness, HandTrackingResult, Point3D, TrackedHand } from '../types/tracking';
+
+function smoothingToAlpha(smoothing: number): number {
+  return 0.85 - smoothing * 0.6;
+}
 
 const FADE_MS = 450;
 const RAISED_Y_THRESHOLD = 0.45;
@@ -45,6 +50,9 @@ export function useHandTracking() {
     const states = statesRef.current;
     if (!landmarker) return { hands: [], bothHandsRaised: false };
 
+    const prefs = interactionStore.getState().options;
+    const alpha = smoothingToAlpha(prefs.trackingSmoothing);
+
     const result = landmarker.detectForVideo(video, timestampMs);
     const now = performance.now();
     const seen = new Set<Handedness>();
@@ -57,14 +65,16 @@ export function useHandTracking() {
 
       let state = states.get(handedness);
       if (!state) {
-        state = { smoother: new SmoothedLandmarks(0.55), stabilizer: new GestureStabilizer(), lastSeen: now };
+        state = { smoother: new SmoothedLandmarks(alpha), stabilizer: new GestureStabilizer(), lastSeen: now };
         states.set(handedness, state);
       }
       state.lastSeen = now;
+      state.smoother.setAlpha(alpha);
 
       const smoothed = state.smoother.update(rawLandmarks as Point3D[]);
-      const rawGesture = detectHandShape(smoothed);
-      const gesture = state.stabilizer.update(rawGesture);
+      const gesture = prefs.gestureRecognition
+        ? state.stabilizer.update(detectHandShape(smoothed, prefs.gestureSensitivity))
+        : 'none';
 
       hands.push({
         handedness,

@@ -2,10 +2,14 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { useCamera } from '../hooks/useCamera';
 import { useFaceTracking } from '../hooks/useFaceTracking';
 import { useHandTracking } from '../hooks/useHandTracking';
+import { useInteractionModules } from '../hooks/useInteractionModules';
+import { MotionHistoryTracker } from '../hooks/useMotionHistory';
 import { audioEngine } from '../services/audioEngine';
+import { interactionStore } from '../store/interactionStore';
 import { GESTURE_LABELS } from '../utils/gestureDetection';
 import FaceOverlay from './FaceOverlay';
 import HandSkeletonOverlay from './HandSkeletonOverlay';
+import InteractionModulesLayer from './InteractionModulesLayer';
 import type {
   CameraStatusInfo,
   FaceStatus,
@@ -49,9 +53,12 @@ const CameraStage = forwardRef<CameraStageHandle, CameraStageProps>(function Cam
     useCamera();
   const faceTracking = useFaceTracking();
   const handTracking = useHandTracking();
+  const { activeModules } = useInteractionModules();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const historyRef = useRef<MotionHistoryTracker | null>(null);
+  if (!historyRef.current) historyRef.current = new MotionHistoryTracker();
 
   const faceResultRef = useRef<FaceTrackingResult>({
     status: 'searching',
@@ -135,8 +142,9 @@ const CameraStage = forwardRef<CameraStageHandle, CameraStageProps>(function Cam
 
       if (ts - lastInference >= inferenceInterval) {
         const t0 = performance.now();
+        const trackingOptions = interactionStore.getState().options;
 
-        if (faceTracking.ready) {
+        if (faceTracking.ready && trackingOptions.faceTracking) {
           const prevStatus = prevFaceStatusRef.current;
           const faceResult = faceTracking.detectFace(video, ts);
           faceResultRef.current = faceResult;
@@ -154,11 +162,22 @@ const CameraStage = forwardRef<CameraStageHandle, CameraStageProps>(function Cam
             }
             prevFaceStatusRef.current = faceResult.status;
           }
+        } else if (!trackingOptions.faceTracking && faceResultRef.current.landmarks) {
+          faceResultRef.current = {
+            status: 'searching',
+            landmarks: null,
+            foreheadPoint: null,
+            boundingBox: null,
+            confidence: 0,
+            sizeMetric: 0,
+          };
+          prevFaceStatusRef.current = 'searching';
         }
 
-        if (handTracking.ready) {
+        if (handTracking.ready && trackingOptions.handTracking) {
           const handResult = handTracking.detectHands(video, ts);
           handResultRef.current = handResult;
+          historyRef.current?.push(handResult, ts);
 
           if (handResult.hands.length > prevHandCountRef.current) {
             pushLog('HAND STRUCTURE MAPPED');
@@ -182,6 +201,12 @@ const CameraStage = forwardRef<CameraStageHandle, CameraStageProps>(function Cam
             audioEngine.play('alert');
           }
           prevBothRaisedRef.current = handResult.bothHandsRaised;
+        } else if (!trackingOptions.handTracking && handResultRef.current.hands.length > 0) {
+          handResultRef.current = { hands: [], bothHandsRaised: false };
+          historyRef.current?.reset();
+          prevHandCountRef.current = 0;
+          prevGesturesRef.current = new Map();
+          prevBothRaisedRef.current = false;
         }
 
         const elapsed = performance.now() - t0;
@@ -253,6 +278,18 @@ const CameraStage = forwardRef<CameraStageHandle, CameraStageProps>(function Cam
         videoSize={videoSize}
         visible={showSkeleton && status === 'active'}
       />
+
+      {status === 'active' && activeModules.length > 0 && (
+        <InteractionModulesLayer
+          activeModules={activeModules}
+          faceResultRef={faceResultRef}
+          handResultRef={handResultRef}
+          historyRef={historyRef}
+          width={size.width}
+          height={size.height}
+          videoSize={videoSize}
+        />
+      )}
 
       {status === 'idle' && !errorMessage && (
         <div className="stage-message">CÂMERA DESATIVADA</div>

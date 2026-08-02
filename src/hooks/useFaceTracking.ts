@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FaceLandmarker } from '@mediapipe/tasks-vision';
 import { getFaceLandmarker } from '../services/faceLandmarker';
 import { SmoothedLandmarks, SmoothedPoint, SmoothedValue } from '../utils/smoothing';
+import { interactionStore } from '../store/interactionStore';
 import type { FaceStatus, FaceTrackingResult, Point3D } from '../types/tracking';
+
+/** smoothing 0 (responsive) .. 1 (heavy) -> alpha 0.75 (light filtering) .. 0.15 (strong filtering). */
+function smoothingToAlpha(smoothing: number): number {
+  return 0.75 - smoothing * 0.6;
+}
 
 const FOREHEAD_LANDMARK = 10;
 const LEFT_EYE_OUTER = 33;
@@ -45,6 +51,10 @@ export function useFaceTracking() {
   const detectFace = useCallback((video: HTMLVideoElement, timestampMs: number): FaceTrackingResult => {
     const landmarker = landmarkerRef.current;
     if (!landmarker) return emptyResult(statusRef.current);
+
+    const alpha = smoothingToAlpha(interactionStore.getState().options.trackingSmoothing);
+    smoothLandmarks.current.setAlpha(alpha);
+    smoothForehead.current.setAlpha(Math.max(0.1, alpha - 0.15));
 
     const result = landmarker.detectForVideo(video, timestampMs);
     const faces = result.faceLandmarks;

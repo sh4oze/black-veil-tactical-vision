@@ -77,6 +77,87 @@ rede, uma única vez, e ficam em cache do navegador.
   React atualizado a cada frame — os dados de rastreamento vivem em `useRef` e só o HUD (texto)
   recebe atualizações agrupadas a cada ~400ms.
 
+## Interaction Modules
+
+Dez módulos de interação opcionais, todos **desativados por padrão**, ativados individualmente pelo
+painel **INTERACTION MODULES** (botão "MÓDULOS") ou pelo **Gesture Menu**. Por padrão apenas um
+módulo fica ativo por vez — ativar um novo desativa o anterior automaticamente — a menos que
+**ALLOW MULTIPLE MODULES** esteja ligado. Todos compartilham os mesmos resultados de rastreamento
+já computados por `CameraStage` (nenhum módulo roda inferência própria) e reagem de verdade aos
+landmarks — nada é "efeito por botão".
+
+| Módulo | Gesto principal |
+| --- | --- |
+| **Energy Orb** | Duas palmas abertas uma de frente para a outra formam uma esfera; afastar/aproximar as mãos escala; girar rotaciona; dois punhos fechados carregam; abrir rápido libera uma onda de partículas. |
+| **Holographic Shield** | Uma palma aberta voltada para a câmera ergue um escudo circular preso à mão (posição, escala e "inclinação" seguem a mão); fechar o punho recolhe. Reage a impactos do Energy Pulse. |
+| **Gesture Menu** | Segurar a palma aberta ~1s abre um menu holográfico; a outra mão vira cursor (indicador) e a pinça funciona como clique; punho fechado fecha o menu. |
+| **Virtual Objects** | Seis primitivas holográficas (cubo, esfera, arquivo, núcleo de dados, drone, disco) — pinça seleciona/arrasta, duas mãos escalam e giram, soltar aplica a velocidade real do arrasto (lança), colisão com bordas e encaixe em zonas de dock. |
+| **Telekinesis** | Palma aberta perto de um objeto o faz flutuar; fechar o punho prende (com linhas de energia até a mão); abrir rápido arremessa usando a velocidade recente do pulso. |
+| **Energy Pulse** | Apontar mira na ponta do indicador; uma pinça rápida dispara um pulso de energia. Inclui minijogo sempre ativo de alvo holográfico com pontuação, precisão e tempo de reação. |
+| **Particle Field** | Campo de partículas ambiente: palma aberta repele, punho fechado atrai, pinça concentra, movimento circular cria vórtice, duas mãos afastando/aproximando expande/comprime o campo, movimento rápido gera onda de choque. |
+| **Air Portal** | Desenhar um círculo no ar com o indicador (validado pela trajetória real do dedo, não por pose única) abre um portal; a distância entre as mãos redimensiona; dois punhos fecham. |
+| **Gesture Hacking** | Minijogo de níveis progressivos alternando entre tocar nós numerados em ordem (pinça como clique) e manter a palma sobre um "scanner"; timer, ACCESS GRANTED/DENIED, reinício automático ou por palma aberta sustentada. |
+| **Motion Echo** | Ecos translúcidos e defasados do esqueleto das mãos e da posição da cabeça, usando o histórico de landmarks já compartilhado — nenhuma inferência extra. |
+
+### Painel de configurações
+
+Botão **CONFIG** abre o painel completo:
+
+- **Tracking**: liga/desliga Face Tracking, Hand Tracking, Target Reticle, Hand Skeleton e Gesture
+  Recognition individualmente (desligar Face/Hand Tracking pausa a respectiva inferência, não só o
+  desenho).
+- **Interactions**: os mesmos 10 módulos.
+- **Visual Quality**: Low / Medium / High / Ultra / Automatic — controla densidade de partículas e
+  efeitos secundários (glow, distorção); no modo Automatic a qualidade é recalculada a partir do FPS
+  medido em tempo real.
+- **Options**: Allow Multiple Modules, Sound Effects, Voice Feedback (lê os eventos do HUD em voz
+  via `SpeechSynthesis`, nativo do navegador), Show Debug Landmarks (pontos numerados sobre mãos e
+  rosto), Show FPS, Gesture Sensitivity, Gesture Confirmation Time, Tracking Smoothing e Reset
+  Modules.
+
+Preferências (qualidade, sensibilidade, opções) são salvas apenas em `localStorage`
+(`blackveil.preferences.v1`) — **os módulos ativos nunca são persistidos**, todos voltam a
+desligado a cada recarregamento, por design.
+
+### Arquitetura dos módulos
+
+```text
+src/
+  modules/
+    energyOrb/ | holographicShield/ | gestureMenu/ | virtualObjects/ | telekinesis/
+    energyPulse/ | particleField/ | airPortal/ | gestureHacking/ | motionEcho/
+      index.ts                     cada um exporta createXModule(): InteractionModule
+    shared/
+      handGeometry.ts              abertura da mão, pinça, normal da palma, centro da palma
+      particles.ts                 ParticlePool com object pooling (sem alocação por frame)
+      impactBus.ts                 pub/sub para reação cross-module a impactos (ex.: Energy Pulse → Shield)
+      stubModule.ts                placeholder usado durante o desenvolvimento incremental
+  hooks/
+    useInteractionModules.ts       instancia os 10 módulos, liga ativação/desativação ao store
+    useGestureStability.ts         GestureStateMachine: IDLE → DETECTING → ACTIVE → RELEASING → COOLDOWN
+    useMotionHistory.ts            histórico de landmarks por mão (velocidade, trajetória, circularidade)
+  store/
+    interactionStore.ts            estado global (módulos, qualidade, opções) + persistência local
+    moduleEvents.ts                pub/sub para módulos emitirem linhas de log no HUD
+  components/
+    InteractionModulesLayer.tsx    canvas + loop próprio; monta o TrackingContext e chama update()/render()
+    InteractionModulesPanel.tsx    painel rápido "INTERACTION MODULES"
+    SettingsPanel.tsx              painel completo (Tracking/Interactions/Visual Quality/Options)
+    ModuleToggleList.tsx           lista de módulos reutilizada pelos dois painéis acima
+  types/
+    modules.ts                     InteractionModule, TrackingContext, ModuleId etc.
+```
+
+Cada módulo implementa `InteractionModule` (`activate/update/render/reset/deactivate`) e é
+desacoplado dos demais — a única forma de comunicação entre módulos é o `impactBus` opcional
+(ex.: Energy Pulse avisa quando um pulso atinge um ponto do canvas; Holographic Shield reage se
+estiver por perto). Desativar um módulo chama `reset()` imediatamente: partículas, objetos, timers
+e estados de gesto são limpos e a próxima renderização do canvas simplesmente para de desenhá-lo.
+
+O loop de `InteractionModulesLayer` roda a ~60fps (independente do intervalo de inferência de
+rastreamento, que se auto-ajusta) e só processa os módulos atualmente ativos — módulos desligados
+têm custo zero.
+
 ## Arquitetura
 
 ```text
@@ -128,3 +209,27 @@ src/
   de tela inicial → câmera → HUD → liga/desliga → redimensionamento, sem erros de console. Não foi
   possível validar visualmente rosto/mãos reais neste ambiente sem uma câmera física — recomenda-se
   um teste manual rápido em um navegador com webcam antes de considerar o sistema definitivo.
+
+### Limitações dos módulos de interação
+
+- **"Voltada para a câmera" e distância são heurísticas**: como o MediaPipe Hand Landmarker não
+  expõe pose 3D verdadeira, orientação da palma (Holographic Shield) e a leve "inclinação" do
+  escudo usam o sinal/magnitude do componente Z relativo dos landmarks — funcionam bem na prática,
+  mas não são uma reconstrução 3D real.
+- **Gesture Hacking** implementa 2 dos 7 tipos de desafio sugeridos (sequência por toque e scanner
+  de palma), alternados por nível com dificuldade progressiva, em vez dos 7 simultaneamente — para
+  manter o minijogo enxuto e testável.
+- **Motion Echo** ecoa mãos (esqueleto completo) e cabeça (ponto da testa); não há rastreamento de
+  corpo/braços neste projeto (só rosto + mãos), então a opção "corpo completo" do pedido original
+  não se aplica.
+- **Virtual Objects e Telekinesis mantêm conjuntos de objetos independentes** — por design, para
+  manter os módulos desacoplados um objeto "telecinético" não é o mesmo objeto arrastável do
+  Virtual Objects.
+- **Sensibilidade/confirmação/suavização (Options)** afetam a classificação de gestos e o
+  amortecimento dos landmarks; a maioria dos módulos também usa seus próprios limiares internos
+  (ex. abertura mínima da mão, raio de alcance) ajustados empiricamente, não expostos na UI.
+- Assim como o restante do app, os módulos foram validados neste ambiente com câmera sintética do
+  Chrome (sem mão/rosto reais): confirmamos que cada um ativa/desativa sem erros de console, limpa
+  seu estado corretamente e coexiste com os demais mesmo em stress test com os 10 simultâneos —
+  mas a precisão fina de cada gesto (ex. threshold de pinça, círculo do Air Portal) só pode ser
+  validada com uma webcam física.

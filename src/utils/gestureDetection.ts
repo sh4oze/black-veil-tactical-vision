@@ -4,32 +4,38 @@ function dist(a: Point3D, b: Point3D): number {
   return Math.hypot(a.x - b.x, a.y - b.y, (a.z ?? 0) - (b.z ?? 0));
 }
 
-function isFingerExtended(landmarks: Point3D[], tipIdx: number, pipIdx: number): boolean {
+function isFingerExtended(landmarks: Point3D[], tipIdx: number, pipIdx: number, factor = 1.15): boolean {
   const wrist = landmarks[0];
-  return dist(wrist, landmarks[tipIdx]) > dist(wrist, landmarks[pipIdx]) * 1.15;
+  return dist(wrist, landmarks[tipIdx]) > dist(wrist, landmarks[pipIdx]) * factor;
 }
 
 /**
  * Classifies a single hand's raw (already smoothed) landmarks into a discrete shape.
  * Uses distance-from-wrist comparisons (rather than raw y-coordinates) so the
  * classification stays robust to hand rotation and camera angle.
+ *
+ * `sensitivity` (0..1, from Options > Gesture Sensitivity) loosens or tightens the
+ * extension/pinch thresholds — higher sensitivity triggers shapes more easily.
  */
-export function detectHandShape(landmarks: Point3D[]): GestureType {
+export function detectHandShape(landmarks: Point3D[], sensitivity = 0.5): GestureType {
   if (landmarks.length < 21) return 'none';
 
+  const extensionFactor = 1.25 - sensitivity * 0.2; // 1.25 (strict) .. 1.05 (loose)
+  const pinchFactor = 0.3 + sensitivity * 0.2; // 0.3 (strict) .. 0.5 (loose)
+
   const wrist = landmarks[0];
-  const indexExt = isFingerExtended(landmarks, 8, 6);
-  const middleExt = isFingerExtended(landmarks, 12, 10);
-  const ringExt = isFingerExtended(landmarks, 16, 14);
-  const pinkyExt = isFingerExtended(landmarks, 20, 18);
+  const indexExt = isFingerExtended(landmarks, 8, 6, extensionFactor);
+  const middleExt = isFingerExtended(landmarks, 12, 10, extensionFactor);
+  const ringExt = isFingerExtended(landmarks, 16, 14, extensionFactor);
+  const pinkyExt = isFingerExtended(landmarks, 20, 18, extensionFactor);
 
   const thumbTip = landmarks[4];
   const thumbMcp = landmarks[2];
-  const thumbExt = dist(wrist, thumbTip) > dist(wrist, thumbMcp) * 1.2;
+  const thumbExt = dist(wrist, thumbTip) > dist(wrist, thumbMcp) * (extensionFactor - 0.05);
 
   const palmSize = dist(landmarks[0], landmarks[9]) || 0.0001;
   const pinchDist = dist(thumbTip, landmarks[8]);
-  if (pinchDist < palmSize * 0.4) return 'pinch';
+  if (pinchDist < palmSize * pinchFactor) return 'pinch';
 
   const extCount = [indexExt, middleExt, ringExt, pinkyExt].filter(Boolean).length;
 

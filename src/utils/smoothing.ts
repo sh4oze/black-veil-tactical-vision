@@ -15,6 +15,10 @@ export class SmoothedValue {
     return this.value;
   }
 
+  setAlpha(alpha: number): void {
+    this.alpha = alpha;
+  }
+
   reset(): void {
     this.value = null;
   }
@@ -32,6 +36,11 @@ export class SmoothedPoint {
 
   update(p: Point2D): Point2D {
     return { x: this.x.update(p.x), y: this.y.update(p.y) };
+  }
+
+  setAlpha(alpha: number): void {
+    this.x.setAlpha(alpha);
+    this.y.setAlpha(alpha);
   }
 
   reset(): void {
@@ -67,6 +76,13 @@ export class SmoothedLandmarks {
   /** Returns the last computed output without advancing the filter — used to freeze a pose while it fades out. */
   peek(): Point3D[] | null {
     return this.lastOutput;
+  }
+
+  setAlpha(alpha: number): void {
+    this.alpha = alpha;
+    this.xs.forEach((s) => s.setAlpha(alpha));
+    this.ys.forEach((s) => s.setAlpha(alpha));
+    this.zs.forEach((s) => s.setAlpha(alpha));
   }
 
   reset(): void {

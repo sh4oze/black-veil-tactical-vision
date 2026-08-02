@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { computeCoverMapping, landmarkToCanvas } from '../utils/coordinates';
 import { drawFaceFrame, drawReticle } from '../utils/drawing';
+import { interactionStore } from '../store/interactionStore';
 import type { FaceTrackingResult } from '../types/tracking';
 
 interface FaceOverlayProps {
@@ -70,6 +71,16 @@ export default function FaceOverlay({ resultRef, width, height, videoSize, visib
         const center = landmarkToCanvas(result.foreheadPoint.x, result.foreheadPoint.y, mapping, width);
         const radius = Math.max(20, Math.min(80, (result.sizeMetric || 0.08) * mapping.drawWidth * 1.7));
         drawReticle(ctx, center, radius, result.status, time);
+      }
+
+      if (interactionStore.getState().options.showDebugLandmarks) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 47, 212, 0.7)';
+        for (let i = 0; i < result.landmarks.length; i += 2) {
+          const p = landmarkToCanvas(result.landmarks[i].x, result.landmarks[i].y, mapping, width);
+          ctx.fillRect(p.x - 0.75, p.y - 0.75, 1.5, 1.5);
+        }
+        ctx.restore();
       }
     };
 

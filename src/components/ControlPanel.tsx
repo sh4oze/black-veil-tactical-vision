@@ -6,6 +6,8 @@ interface ControlPanelProps {
   reticleVisible: boolean;
   isFullscreen: boolean;
   canSwitchFacing: boolean;
+  modulesPanelOpen: boolean;
+  settingsPanelOpen: boolean;
   onToggleCamera: () => void;
   onToggleSound: () => void;
   onToggleHud: () => void;
@@ -13,6 +15,8 @@ interface ControlPanelProps {
   onToggleReticle: () => void;
   onToggleFullscreen: () => void;
   onSwitchFacing: () => void;
+  onToggleModulesPanel: () => void;
+  onToggleSettingsPanel: () => void;
 }
 
 function ToggleButton({
@@ -43,6 +47,8 @@ export default function ControlPanel({
   reticleVisible,
   isFullscreen,
   canSwitchFacing,
+  modulesPanelOpen,
+  settingsPanelOpen,
   onToggleCamera,
   onToggleSound,
   onToggleHud,
@@ -50,6 +56,8 @@ export default function ControlPanel({
   onToggleReticle,
   onToggleFullscreen,
   onSwitchFacing,
+  onToggleModulesPanel,
+  onToggleSettingsPanel,
 }: ControlPanelProps) {
   return (
     <div className="control-panel">
@@ -64,6 +72,8 @@ export default function ControlPanel({
       <ToggleButton active={hudVisible} label="HUD" onClick={onToggleHud} />
       <ToggleButton active={reticleVisible} label="MIRA" onClick={onToggleReticle} />
       <ToggleButton active={skeletonVisible} label="ESQUELETO" onClick={onToggleSkeleton} />
+      <ToggleButton active={modulesPanelOpen} label="MÓDULOS" onClick={onToggleModulesPanel} />
+      <ToggleButton active={settingsPanelOpen} label="CONFIG" onClick={onToggleSettingsPanel} />
       <button className="btn-tactical btn-toggle" onClick={onToggleFullscreen}>
         {isFullscreen ? 'SAIR TELA CHEIA' : 'TELA CHEIA'}
       </button>

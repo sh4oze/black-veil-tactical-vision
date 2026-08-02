@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { computeCoverMapping, landmarkToCanvas } from '../utils/coordinates';
 import { drawHandSkeleton } from '../utils/drawing';
+import { interactionStore } from '../store/interactionStore';
 import type { HandTrackingResult } from '../types/tracking';
 
 interface HandSkeletonOverlayProps {
@@ -49,9 +50,25 @@ export default function HandSkeletonOverlay({ resultRef, width, height, videoSiz
 
       const mapping = computeCoverMapping(videoSize.w, videoSize.h, width, height);
 
+      const showDebug = interactionStore.getState().options.showDebugLandmarks;
+
       for (const hand of result.hands) {
         const points = hand.landmarks.map((lm) => landmarkToCanvas(lm.x, lm.y, mapping, width));
         drawHandSkeleton(ctx, points, hand.handedness, hand.opacity, time);
+
+        if (showDebug) {
+          ctx.save();
+          ctx.globalAlpha = hand.opacity;
+          ctx.fillStyle = '#ff2fd4';
+          ctx.font = '9px ui-monospace, monospace';
+          points.forEach((p, i) => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillText(String(i), p.x + 4, p.y - 4);
+          });
+          ctx.restore();
+        }
       }
     };
 

@@ -5,6 +5,7 @@ interface TacticalHUDProps {
   telemetry: Telemetry;
   cameraStatus: CameraStatusInfo;
   soundOn: boolean;
+  showFps: boolean;
   logs: LogEntry[];
   visible: boolean;
 }
@@ -16,7 +17,7 @@ const FACE_STATUS_LABEL: Record<Telemetry['faceStatus'], string> = {
   lost: 'ALVO PERDIDO',
 };
 
-export default function TacticalHUD({ telemetry, cameraStatus, soundOn, logs, visible }: TacticalHUDProps) {
+export default function TacticalHUD({ telemetry, cameraStatus, soundOn, showFps, logs, visible }: TacticalHUDProps) {
   if (!visible) return null;
 
   return (
@@ -41,7 +42,7 @@ export default function TacticalHUD({ telemetry, cameraStatus, soundOn, logs, vi
             CAM {cameraStatus.status === 'active' ? 'ON' : 'OFF'}
           </span>
           <span className={`hud-pill ${soundOn ? 'ok' : 'muted'}`}>SOM {soundOn ? 'ON' : 'OFF'}</span>
-          <span className="hud-pill">FPS {telemetry.fps.toFixed(0)}</span>
+          {showFps && <span className="hud-pill">FPS {telemetry.fps.toFixed(0)}</span>}
         </div>
       </header>
 

@@ -503,6 +503,215 @@ button {
   100% { transform: translate(1%, -1%); }
 }
 
+/* ---------------------------------- Interaction modules / settings panels ---------------------------------- */
+
+.panel-close-btn {
+  background: transparent;
+  border: none;
+  color: #9fb5a3;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.1rem 0.3rem;
+}
+.panel-close-btn:hover {
+  color: #eaffee;
+}
+
+.modules-panel {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  z-index: 30;
+  width: 250px;
+  max-height: 74vh;
+  overflow-y: auto;
+  background: rgba(6, 10, 8, 0.94);
+  border: 1px solid rgba(125, 211, 92, 0.3);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  padding: 0.8rem;
+  font-size: 0.68rem;
+  pointer-events: auto;
+}
+
+.modules-panel-header,
+.settings-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--bv-cold-blue);
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(125, 211, 92, 0.2);
+}
+
+.modules-panel-hint {
+  color: #7a8f7d;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+.modules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.module-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(125, 211, 92, 0.18);
+  color: #b7c9ba;
+  font-family: var(--bv-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  padding: 0.4rem 0.55rem;
+  cursor: pointer;
+  text-align: left;
+}
+.module-row:hover {
+  border-color: rgba(125, 211, 92, 0.5);
+}
+.module-row.is-active {
+  color: var(--bv-military-green-bright);
+  border-color: var(--bv-military-green-bright);
+  background: rgba(74, 124, 63, 0.15);
+}
+
+.module-row-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+.module-row.is-active .module-row-dot {
+  opacity: 1;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.module-row-label {
+  flex: 1;
+}
+
+.module-row-state {
+  font-size: 0.58rem;
+  opacity: 0.8;
+}
+
+.modules-panel-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(125, 211, 92, 0.2);
+}
+.modules-panel-footer .btn-tactical {
+  width: 100%;
+  text-align: center;
+}
+
+.settings-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 31;
+  width: min(560px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: rgba(6, 10, 8, 0.96);
+  border: 1px solid rgba(125, 211, 92, 0.3);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.6);
+  padding: 0.9rem 1rem;
+  font-size: 0.7rem;
+}
+
+.settings-panel-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.settings-section-title {
+  color: var(--bv-cold-blue);
+  letter-spacing: 0.14em;
+  font-size: 0.62rem;
+  margin-bottom: 0.15rem;
+}
+
+.option-switch {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(125, 211, 92, 0.18);
+  color: #b7c9ba;
+  font-family: var(--bv-mono);
+  font-size: 0.62rem;
+  padding: 0.4rem 0.55rem;
+  cursor: pointer;
+  text-align: left;
+}
+.option-switch:hover {
+  border-color: rgba(125, 211, 92, 0.5);
+}
+.option-switch.is-active {
+  color: var(--bv-military-green-bright);
+  border-color: var(--bv-military-green-bright);
+  background: rgba(74, 124, 63, 0.15);
+}
+.option-switch-state {
+  font-size: 0.58rem;
+  opacity: 0.8;
+}
+
+.option-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.3rem 0.1rem;
+}
+.option-slider-row {
+  display: flex;
+  justify-content: space-between;
+  color: #b7c9ba;
+  font-size: 0.62rem;
+}
+
+.tactical-range {
+  width: 100%;
+  accent-color: var(--bv-military-green-bright);
+  background: transparent;
+}
+
+.quality-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.is-danger-outline {
+  border-color: rgba(179, 18, 31, 0.5) !important;
+  color: #ff8f8f !important;
+}
+
 /* ---------------------------------- Responsive ---------------------------------- */
 
 @media (max-width: 760px) {
@@ -521,6 +730,15 @@ button {
   }
   .hud-footer {
     display: none;
+  }
+  .modules-panel {
+    width: 84vw;
+    right: 50%;
+    top: 50%;
+    transform: translate(50%, -50%);
+  }
+  .settings-panel-body {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -3,7 +3,12 @@ import StartupScreen from './components/StartupScreen';
 import CameraStage, { type CameraStageHandle } from './components/CameraStage';
 import TacticalHUD from './components/TacticalHUD';
 import ControlPanel from './components/ControlPanel';
+import InteractionModulesPanel from './components/InteractionModulesPanel';
+import SettingsPanel from './components/SettingsPanel';
 import { audioEngine } from './services/audioEngine';
+import { speak, setVoiceFeedbackEnabled } from './services/voiceFeedback';
+import { interactionStore, useInteractionState } from './store/interactionStore';
+import { subscribeModuleEvents } from './store/moduleEvents';
 import type { CameraStatusInfo, LogEntry, Telemetry } from './types/tracking';
 
 const INITIAL_TELEMETRY: Telemetry = {
@@ -28,16 +33,16 @@ let logId = 0;
 
 export default function App() {
   const [systemStarted, setSystemStarted] = useState(false);
-  const [soundOn, setSoundOn] = useState(false);
   const [hudVisible, setHudVisible] = useState(true);
-  const [skeletonVisible, setSkeletonVisible] = useState(true);
-  const [reticleVisible, setReticleVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [modulesPanelVisible, setModulesPanelVisible] = useState(false);
+  const [settingsPanelVisible, setSettingsPanelVisible] = useState(false);
 
   const [telemetry, setTelemetry] = useState<Telemetry>(INITIAL_TELEMETRY);
   const [cameraStatus, setCameraStatus] = useState<CameraStatusInfo>(INITIAL_CAMERA_STATUS);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
+  const prefs = useInteractionState();
   const stageRef = useRef<CameraStageHandle>(null);
 
   const pushLog = useCallback((text: string) => {
@@ -45,7 +50,14 @@ export default function App() {
       const next = [...prev, { id: logId++, text, time: Date.now() }];
       return next.slice(-6);
     });
+    speak(text);
   }, []);
+
+  useEffect(() => {
+    setVoiceFeedbackEnabled(prefs.options.voiceFeedback);
+  }, [prefs.options.voiceFeedback]);
+
+  useEffect(() => subscribeModuleEvents(pushLog), [pushLog]);
 
   useEffect(() => {
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -70,13 +82,11 @@ export default function App() {
   }, [cameraStatus.status, pushLog]);
 
   const handleToggleSound = useCallback(() => {
-    setSoundOn((prev) => {
-      const next = !prev;
-      audioEngine.setEnabled(next);
-      if (next) audioEngine.play('startup');
-      return next;
-    });
-  }, []);
+    const next = !prefs.options.soundEffects;
+    interactionStore.setOption('soundEffects', next);
+    audioEngine.setEnabled(next);
+    if (next) audioEngine.play('startup');
+  }, [prefs.options.soundEffects]);
 
   const handleToggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
@@ -99,9 +109,9 @@ export default function App() {
           <CameraStage
             ref={stageRef}
             autoStart
-            soundOn={soundOn}
-            showReticle={reticleVisible}
-            showSkeleton={skeletonVisible}
+            soundOn={prefs.options.soundEffects}
+            showReticle={prefs.options.targetReticle}
+            showSkeleton={prefs.options.handSkeleton}
             onTelemetry={setTelemetry}
             onLog={pushLog}
             onCameraStatus={setCameraStatus}
@@ -110,26 +120,34 @@ export default function App() {
           <TacticalHUD
             telemetry={telemetry}
             cameraStatus={cameraStatus}
-            soundOn={soundOn}
+            soundOn={prefs.options.soundEffects}
+            showFps={prefs.options.showFps}
             logs={logs}
             visible={hudVisible}
           />
 
+          <InteractionModulesPanel visible={modulesPanelVisible} onClose={() => setModulesPanelVisible(false)} />
+          <SettingsPanel visible={settingsPanelVisible} onClose={() => setSettingsPanelVisible(false)} />
+
           <ControlPanel
             cameraOn={cameraStatus.status === 'active' || cameraStatus.status === 'starting'}
-            soundOn={soundOn}
+            soundOn={prefs.options.soundEffects}
             hudVisible={hudVisible}
-            skeletonVisible={skeletonVisible}
-            reticleVisible={reticleVisible}
+            skeletonVisible={prefs.options.handSkeleton}
+            reticleVisible={prefs.options.targetReticle}
             isFullscreen={isFullscreen}
             canSwitchFacing={cameraStatus.canSwitchFacing}
+            modulesPanelOpen={modulesPanelVisible}
+            settingsPanelOpen={settingsPanelVisible}
             onToggleCamera={handleToggleCamera}
             onToggleSound={handleToggleSound}
             onToggleHud={() => setHudVisible((v) => !v)}
-            onToggleSkeleton={() => setSkeletonVisible((v) => !v)}
-            onToggleReticle={() => setReticleVisible((v) => !v)}
+            onToggleSkeleton={() => interactionStore.setOption('handSkeleton', !prefs.options.handSkeleton)}
+            onToggleReticle={() => interactionStore.setOption('targetReticle', !prefs.options.targetReticle)}
             onToggleFullscreen={handleToggleFullscreen}
             onSwitchFacing={handleSwitchFacing}
+            onToggleModulesPanel={() => setModulesPanelVisible((v) => !v)}
+            onToggleSettingsPanel={() => setSettingsPanelVisible((v) => !v)}
           />
         </div>
       )}
