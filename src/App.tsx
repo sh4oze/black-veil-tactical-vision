@@ -149,6 +149,7 @@ export default function App() {
             hudVisible={hudVisible}
             skeletonVisible={prefs.options.handSkeleton}
             reticleVisible={prefs.options.targetReticle}
+            autoFireOn={prefs.options.autoFire}
             isFullscreen={isFullscreen}
             canSwitchFacing={cameraStatus.canSwitchFacing}
             modulesPanelOpen={modulesPanelVisible}
@@ -158,6 +159,7 @@ export default function App() {
             onToggleHud={() => setHudVisible((v) => !v)}
             onToggleSkeleton={() => interactionStore.setOption('handSkeleton', !prefs.options.handSkeleton)}
             onToggleReticle={() => interactionStore.setOption('targetReticle', !prefs.options.targetReticle)}
+            onToggleAutoFire={() => interactionStore.setOption('autoFire', !prefs.options.autoFire)}
             onToggleFullscreen={handleToggleFullscreen}
             onSwitchFacing={handleSwitchFacing}
             onToggleModulesPanel={() => setModulesPanelVisible((v) => !v)}

@@ -99,7 +99,7 @@ export function createEnergyOrbModule(): InteractionModule {
         vy: Math.sin(angle) * speed,
         maxLife: 0.45 + Math.random() * 0.3,
         size: 2 + Math.random() * 2,
-        hue: 130,
+        hue: 12 + Math.random() * 40,
       });
     }
     if (context.soundEnabled) audioEngine.play('alert');
@@ -194,9 +194,9 @@ export function createEnergyOrbModule(): InteractionModule {
 
       ctx.save();
       const gradient = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, radius);
-      gradient.addColorStop(0, 'rgba(210,255,225,0.95)');
-      gradient.addColorStop(0.45, `rgba(125,211,92,${0.5 + chargeLevel * 0.3})`);
-      gradient.addColorStop(1, 'rgba(58,198,232,0)');
+      gradient.addColorStop(0, 'rgba(255,246,224,0.95)');
+      gradient.addColorStop(0.45, `rgba(255,140,60,${0.55 + chargeLevel * 0.3})`);
+      gradient.addColorStop(1, 'rgba(179,18,31,0)');
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
@@ -204,7 +204,7 @@ export function createEnergyOrbModule(): InteractionModule {
 
       if (context.quality.effectsEnabled) {
         for (let i = 1; i <= 2; i++) {
-          ctx.strokeStyle = `rgba(125,211,92,${0.16 / i})`;
+          ctx.strokeStyle = `rgba(255,120,40,${0.18 / i})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(center.x, center.y, radius * (1 + i * 0.2) + Math.sin(context.time / 320 + i) * 3, 0, Math.PI * 2);
@@ -213,8 +213,8 @@ export function createEnergyOrbModule(): InteractionModule {
       }
 
       const arcCount = Math.max(1, Math.round(3 * context.quality.particleMultiplier));
-      ctx.strokeStyle = '#eaffee';
-      ctx.shadowColor = '#7dd35c';
+      ctx.strokeStyle = '#fff2d9';
+      ctx.shadowColor = '#ff8c3c';
       ctx.shadowBlur = 8;
       ctx.lineWidth = 1.2;
       for (let i = 0; i < arcCount; i++) {
@@ -230,7 +230,7 @@ export function createEnergyOrbModule(): InteractionModule {
         const x = center.x + Math.cos(o.angle + rotation) * r;
         const y = center.y + Math.sin(o.angle + rotation) * r * 0.55;
         ctx.globalAlpha = 0.85;
-        ctx.fillStyle = '#eaffee';
+        ctx.fillStyle = '#fff2d9';
         ctx.beginPath();
         ctx.arc(x, y, o.size, 0, Math.PI * 2);
         ctx.fill();

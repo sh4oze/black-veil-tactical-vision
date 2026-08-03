@@ -94,6 +94,7 @@ export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) 
           <OptionSwitch label="Face Tracking" active={state.options.faceTracking} onToggle={() => setOption('faceTracking', !state.options.faceTracking)} />
           <OptionSwitch label="Hand Tracking" active={state.options.handTracking} onToggle={() => setOption('handTracking', !state.options.handTracking)} />
           <OptionSwitch label="Target Reticle" active={state.options.targetReticle} onToggle={() => setOption('targetReticle', !state.options.targetReticle)} />
+          <OptionSwitch label="Auto-Fire on Lock" active={state.options.autoFire} onToggle={() => setOption('autoFire', !state.options.autoFire)} />
           <OptionSwitch label="Hand Skeleton" active={state.options.handSkeleton} onToggle={() => setOption('handSkeleton', !state.options.handSkeleton)} />
           <OptionSwitch label="Gesture Recognition" active={state.options.gestureRecognition} onToggle={() => setOption('gestureRecognition', !state.options.gestureRecognition)} />
         </section>

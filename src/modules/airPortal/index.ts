@@ -1,11 +1,11 @@
 import { GestureStateMachine } from '../../hooks/useGestureStability';
 import { getLandmarkPath, pathCircularity } from '../../hooks/useMotionHistory';
 import { audioEngine } from '../../services/audioEngine';
-import { dist2, handOpenness } from '../shared/handGeometry';
+import { dist2, handOpenness, isPinching, pinchMidpoint } from '../shared/handGeometry';
 import { emitModuleEvent } from '../../store/moduleEvents';
 import { MODULE_LABELS } from '../../types/modules';
 import type { InteractionModule, TrackingContext } from '../../types/modules';
-import type { Point2D } from '../../types/tracking';
+import type { Handedness, Point2D } from '../../types/tracking';
 
 const DRAW_WINDOW_MS = 1400;
 const MIN_DRAW_DURATION_MS = 650;
@@ -14,12 +14,25 @@ const CLOSE_HOLD_MS = 500;
 const MIN_RADIUS = 50;
 const MAX_RADIUS_RATIO = 0.32;
 const REOPEN_COOLDOWN_MS = 700;
+const GRAB_REACH = 50;
+
+interface PortalGrab {
+  /** center - pinchPos at the moment of grab, so single-hand drag doesn't snap the portal to the fingers. */
+  offset: Point2D;
+}
+
+interface TwoHandResize {
+  initialDist: number;
+  initialRadius: number;
+}
 
 /**
  * Draws a portal by tracing a circle in the air with an extended index finger — the
  * gesture is validated from the finger's recent trajectory (radius consistency +
  * angular coverage), not a single-frame pose, so it takes a deliberate loop to open.
- * Once open, the distance between both hands resizes it; both fists closes it.
+ * Once open, a pinch near the rim grabs it: one hand drags it around, two hands
+ * pinching at once resize it from the live distance between the pinch points
+ * (same "hands set the size" feel as Energy Orb). Both fists closes it.
  */
 export function createAirPortalModule(): InteractionModule {
   const closeMachine = new GestureStateMachine(CLOSE_HOLD_MS, 120, 300);
@@ -32,6 +45,8 @@ export function createAirPortalModule(): InteractionModule {
   let lastCloseAt = -Infinity;
   let livePath: Point2D[] = [];
   let liveScore = 0;
+  const grabbedHands = new Map<Handedness, PortalGrab>();
+  let twoHandResize: TwoHandResize | null = null;
 
   function closePortal(context: TrackingContext): void {
     open = false;
@@ -84,16 +99,52 @@ export function createAirPortalModule(): InteractionModule {
         return;
       }
 
-      if (hands.length === 2) {
-        const d = dist2(
-          context.toCanvas(hands[0].landmarks[0].x, hands[0].landmarks[0].y),
-          context.toCanvas(hands[1].landmarks[0].x, hands[1].landmarks[0].y),
-        );
-        targetRadius = Math.max(MIN_RADIUS, Math.min(context.canvasWidth * MAX_RADIUS_RATIO, d * 0.45));
+      const pinchingHands = hands.filter((h) => isPinching(h, context.sensitivity));
+      const pinchingSet = new Set(pinchingHands.map((h) => h.handedness));
+
+      for (const handedness of [...grabbedHands.keys()]) {
+        if (!pinchingSet.has(handedness)) {
+          grabbedHands.delete(handedness);
+          if (twoHandResize && grabbedHands.size < 2) twoHandResize = null;
+        }
       }
+
+      for (const hand of pinchingHands) {
+        if (grabbedHands.has(hand.handedness)) continue;
+        const pinchPos = context.toCanvas(pinchMidpoint(hand).x, pinchMidpoint(hand).y);
+        if (dist2(pinchPos, center) > radius + GRAB_REACH) continue;
+        grabbedHands.set(hand.handedness, { offset: { x: center.x - pinchPos.x, y: center.y - pinchPos.y } });
+        if (context.soundEnabled) audioEngine.play('hand_detected');
+      }
+
+      if (grabbedHands.size === 2) {
+        const [handA, handB] = [...grabbedHands.keys()];
+        const hA = hands.find((h) => h.handedness === handA);
+        const hB = hands.find((h) => h.handedness === handB);
+        if (hA && hB) {
+          const pA = context.toCanvas(pinchMidpoint(hA).x, pinchMidpoint(hA).y);
+          const pB = context.toCanvas(pinchMidpoint(hB).x, pinchMidpoint(hB).y);
+          const liveDist = Math.max(20, dist2(pA, pB));
+          if (!twoHandResize) twoHandResize = { initialDist: liveDist, initialRadius: radius };
+          targetRadius = Math.max(
+            MIN_RADIUS,
+            Math.min(context.canvasWidth * MAX_RADIUS_RATIO, twoHandResize.initialRadius * (liveDist / twoHandResize.initialDist)),
+          );
+          center = { x: (pA.x + pB.x) / 2, y: (pA.y + pB.y) / 2 };
+        }
+      } else if (grabbedHands.size === 1) {
+        twoHandResize = null;
+        const [[handedness, grab]] = [...grabbedHands.entries()];
+        const hand = hands.find((h) => h.handedness === handedness);
+        if (hand) {
+          const pinchPos = context.toCanvas(pinchMidpoint(hand).x, pinchMidpoint(hand).y);
+          center = { x: pinchPos.x + grab.offset.x, y: pinchPos.y + grab.offset.y };
+        }
+      }
+
       radius += (targetRadius - radius) * 0.12;
 
-      const bothFists = hands.length === 2 && hands.every((h) => handOpenness(h) < 0.42);
+      const bothFists = grabbedHands.size === 0 && hands.length === 2 && hands.every((h) => handOpenness(h) < 0.42);
       if (closeMachine.update(bothFists, context.time) === 'ACTIVE') {
         closePortal(context);
       }
@@ -149,15 +200,44 @@ export function createAirPortalModule(): InteractionModule {
       }
       ctx.restore();
 
+      const grabbed = grabbedHands.size > 0;
       ctx.save();
-      ctx.strokeStyle = '#c8a8ff';
-      ctx.shadowColor = '#c8a8ff';
-      ctx.shadowBlur = 14;
-      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = grabbed ? '#eaffee' : '#c8a8ff';
+      ctx.shadowColor = grabbed ? '#eaffee' : '#c8a8ff';
+      ctx.shadowBlur = grabbed ? 20 : 14;
+      ctx.lineWidth = grabbed ? 3.2 : 2.5;
       ctx.beginPath();
       ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
+
+      if (twoHandResize && grabbedHands.size === 2) {
+        const [handA, handB] = [...grabbedHands.keys()];
+        const hA = context.hands.hands.find((h) => h.handedness === handA);
+        const hB = context.hands.hands.find((h) => h.handedness === handB);
+        if (hA && hB) {
+          const pA = context.toCanvas(pinchMidpoint(hA).x, pinchMidpoint(hA).y);
+          const pB = context.toCanvas(pinchMidpoint(hB).x, pinchMidpoint(hB).y);
+          ctx.save();
+          ctx.strokeStyle = 'rgba(234,255,238,0.5)';
+          ctx.shadowColor = '#eaffee';
+          ctx.shadowBlur = 6;
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(pA.x, pA.y);
+          ctx.lineTo(pB.x, pB.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          const pct = Math.round((radius / twoHandResize.initialRadius) * 100);
+          ctx.fillStyle = '#eaffee';
+          ctx.font = '600 10px ui-monospace, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${pct}%`, (pA.x + pB.x) / 2, (pA.y + pB.y) / 2 - 10);
+          ctx.restore();
+        }
+      }
     },
 
     reset() {
@@ -168,6 +248,8 @@ export function createAirPortalModule(): InteractionModule {
       liveScore = 0;
       closeMachine.reset();
       lastCloseAt = -Infinity;
+      grabbedHands.clear();
+      twoHandResize = null;
     },
 
     deactivate() {

@@ -4,6 +4,7 @@ interface ControlPanelProps {
   hudVisible: boolean;
   skeletonVisible: boolean;
   reticleVisible: boolean;
+  autoFireOn: boolean;
   isFullscreen: boolean;
   canSwitchFacing: boolean;
   modulesPanelOpen: boolean;
@@ -13,6 +14,7 @@ interface ControlPanelProps {
   onToggleHud: () => void;
   onToggleSkeleton: () => void;
   onToggleReticle: () => void;
+  onToggleAutoFire: () => void;
   onToggleFullscreen: () => void;
   onSwitchFacing: () => void;
   onToggleModulesPanel: () => void;
@@ -46,6 +48,7 @@ export default function ControlPanel({
   hudVisible,
   skeletonVisible,
   reticleVisible,
+  autoFireOn,
   isFullscreen,
   canSwitchFacing,
   modulesPanelOpen,
@@ -55,6 +58,7 @@ export default function ControlPanel({
   onToggleHud,
   onToggleSkeleton,
   onToggleReticle,
+  onToggleAutoFire,
   onToggleFullscreen,
   onSwitchFacing,
   onToggleModulesPanel,
@@ -73,6 +77,7 @@ export default function ControlPanel({
       <ToggleButton active={soundOn} label={soundOn ? 'SOM: ON' : 'SOM: OFF'} onClick={onToggleSound} />
       <ToggleButton active={hudVisible} label="HUD" onClick={onToggleHud} />
       <ToggleButton active={reticleVisible} label="MIRA" onClick={onToggleReticle} />
+      <ToggleButton active={autoFireOn} label="AUTO-DISPARO" onClick={onToggleAutoFire} />
       <ToggleButton active={skeletonVisible} label="ESQUELETO" onClick={onToggleSkeleton} />
       <ToggleButton active={modulesPanelOpen} label="MÓDULOS" onClick={onToggleModulesPanel} />
       <ToggleButton active={settingsPanelOpen} label="CONFIG" onClick={onToggleSettingsPanel} />

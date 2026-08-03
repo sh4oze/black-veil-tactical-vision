@@ -1,5 +1,6 @@
 import { audioEngine } from '../../services/audioEngine';
 import { dist2, isPinching, pinchMidpoint } from '../shared/handGeometry';
+import { emitModuleEvent } from '../../store/moduleEvents';
 import { MODULE_LABELS } from '../../types/modules';
 import type { InteractionModule, TrackingContext } from '../../types/modules';
 import type { Handedness } from '../../types/tracking';
@@ -27,6 +28,8 @@ interface VObject {
   history: PosSample[];
   snapped: boolean;
   selectPulse: number;
+  snapFlash: number;
+  floatPhase: number;
 }
 
 interface SnapZone {
@@ -38,9 +41,30 @@ interface SnapZone {
 
 const OBJECT_TYPES: ObjectType[] = ['cube', 'sphere', 'file', 'dataCore', 'drone', 'disk'];
 const GRAB_RADIUS = 60;
+const HOVER_RADIUS = GRAB_RADIUS * 1.3;
 const FRICTION_PER_SEC = 2.6;
 const BOUNCE_DAMPING = 0.45;
 const SNAP_SPEED_THRESHOLD = 40;
+
+/** Distinct signature color per holographic primitive — lets you tell types apart at a glance. */
+const TYPE_COLORS: Record<ObjectType, string> = {
+  cube: '#3ac6e8',
+  sphere: '#7dd35c',
+  file: '#d1273a',
+  dataCore: '#9d4edd',
+  drone: '#e8c93a',
+  disk: '#8fd9ff',
+};
+
+function hexToRgb(hex: string): [number, number, number] {
+  const v = parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+
+function rgba(hex: string, alpha: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 function createObjects(canvasWidth: number, canvasHeight: number): VObject[] {
   return OBJECT_TYPES.map((type, i) => {
@@ -62,6 +86,8 @@ function createObjects(canvasWidth: number, canvasHeight: number): VObject[] {
       history: [],
       snapped: false,
       selectPulse: 0,
+      snapFlash: 0,
+      floatPhase: Math.random() * Math.PI * 2,
     };
   });
 }
@@ -83,13 +109,15 @@ interface TwoHandGrab {
  * A small set of holographic primitives (cube, sphere, classified file, data core,
  * drone, disk) that can be pinch-selected, dragged, thrown (release velocity is
  * measured from the object's recent drag trajectory, not the raw hand — steadier),
- * scaled/rotated with two hands, and docked into snap zones.
+ * scaled/rotated with two hands, and docked into snap zones. Each type has its own
+ * signature color; idle objects drift and bob gently so the scene never looks static.
  */
 export function createVirtualObjectsModule(): InteractionModule {
   let objects: VObject[] = [];
   let zones: SnapZone[] = [];
   const handGrabs = new Map<Handedness, string>();
   let twoHand: TwoHandGrab | null = null;
+  let hoverTargetId: string | null = null;
   let initialized = false;
 
   function ensureInitialized(context: TrackingContext): void {
@@ -187,8 +215,27 @@ export function createVirtualObjectsModule(): InteractionModule {
         }
       }
 
+      // Pre-grab hover feedback: highlight whichever ungrabbed object a free hand is
+      // hovering near, so the user knows what a pinch would catch before committing.
+      hoverTargetId = null;
+      let bestHoverDist = HOVER_RADIUS;
+      for (const hand of hands) {
+        if (handGrabs.has(hand.handedness)) continue;
+        const pos = context.toCanvas(pinchMidpoint(hand).x, pinchMidpoint(hand).y);
+        for (const obj of objects) {
+          if (obj.grabbedBy) continue;
+          const d = dist2(pos, { x: obj.x, y: obj.y });
+          if (d < bestHoverDist) {
+            bestHoverDist = d;
+            hoverTargetId = obj.id;
+          }
+        }
+      }
+
       for (const obj of objects) {
         obj.selectPulse = Math.max(0, obj.selectPulse - context.dt * 1.5);
+        obj.snapFlash = Math.max(0, obj.snapFlash - context.dt * 1.2);
+        obj.floatPhase += context.dt * 1.6;
 
         if (obj.grabbedBy) {
           const grabbedHand = hands.find((h) => h.handedness === obj.grabbedBy);
@@ -250,7 +297,35 @@ export function createVirtualObjectsModule(): InteractionModule {
             obj.y += (zone.y - obj.y) * 0.2;
             obj.vx = 0;
             obj.vy = 0;
-            if (dist2({ x: obj.x, y: obj.y }, zone) < 2) obj.snapped = true;
+            if (dist2({ x: obj.x, y: obj.y }, zone) < 2 && !obj.snapped) {
+              obj.snapped = true;
+              obj.snapFlash = 1;
+              emitModuleEvent(`OBJETO ANCORADO: ${obj.type.toUpperCase()}`);
+              if (context.soundEnabled) audioEngine.play('lock');
+            }
+          }
+        }
+      }
+
+      // Cheap pairwise separation so free-floating objects don't overlap each other.
+      for (let i = 0; i < objects.length; i++) {
+        const a = objects[i];
+        if (a.grabbedBy || a.snapped) continue;
+        for (let j = i + 1; j < objects.length; j++) {
+          const b = objects[j];
+          if (b.grabbedBy || b.snapped) continue;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.max(0.01, Math.hypot(dx, dy));
+          const minDist = (a.baseRadius * a.scale + b.baseRadius * b.scale) * 0.85;
+          if (dist < minDist) {
+            const overlap = (minDist - dist) / 2;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            a.x -= nx * overlap;
+            a.y -= ny * overlap;
+            b.x += nx * overlap;
+            b.y += ny * overlap;
           }
         }
       }
@@ -278,7 +353,7 @@ export function createVirtualObjectsModule(): InteractionModule {
       ctx.restore();
 
       for (const obj of objects) {
-        drawObject(ctx, obj, context);
+        drawObject(ctx, obj, context, obj.id === hoverTargetId);
       }
     },
 
@@ -287,6 +362,7 @@ export function createVirtualObjectsModule(): InteractionModule {
       zones = [];
       handGrabs.clear();
       twoHand = null;
+      hoverTargetId = null;
       initialized = false;
     },
 
@@ -299,17 +375,30 @@ export function createVirtualObjectsModule(): InteractionModule {
   return module;
 }
 
-function drawObject(ctx: CanvasRenderingContext2D, obj: VObject, context: TrackingContext): void {
+function drawObject(ctx: CanvasRenderingContext2D, obj: VObject, context: TrackingContext, hovered: boolean): void {
+  const baseColor = TYPE_COLORS[obj.type];
   const r = obj.baseRadius * obj.scale * (1 + obj.selectPulse * 0.15);
-  const glow = obj.grabbedBy ? '#eaffee' : '#7dd35c';
+  const glow = obj.grabbedBy ? '#eaffee' : hovered ? '#ffffff' : baseColor;
+  const bob = obj.grabbedBy || obj.snapped ? 0 : Math.sin(obj.floatPhase) * 3;
+
+  // Ground shadow — cheap depth cue, skipped while grabbed (object is "lifted").
+  if (!obj.grabbedBy) {
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.ellipse(obj.x, obj.y + r * 0.92 + bob * 0.3, r * 0.75, r * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   ctx.save();
-  ctx.translate(obj.x, obj.y);
+  ctx.translate(obj.x, obj.y + bob);
   ctx.rotate(obj.rotation);
   ctx.strokeStyle = glow;
-  ctx.fillStyle = 'rgba(125,211,92,0.08)';
+  ctx.fillStyle = rgba(baseColor, 0.1);
   ctx.shadowColor = glow;
-  ctx.shadowBlur = obj.grabbedBy ? 16 : 8;
+  ctx.shadowBlur = obj.grabbedBy ? 18 : hovered ? 12 : 8;
   ctx.lineWidth = 1.6;
 
   switch (obj.type) {
@@ -334,7 +423,7 @@ function drawObject(ctx: CanvasRenderingContext2D, obj: VObject, context: Tracki
     case 'sphere': {
       const gradient = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
       gradient.addColorStop(0, 'rgba(234,255,238,0.5)');
-      gradient.addColorStop(1, 'rgba(125,211,92,0.05)');
+      gradient.addColorStop(1, rgba(baseColor, 0.05));
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
@@ -377,9 +466,13 @@ function drawObject(ctx: CanvasRenderingContext2D, obj: VObject, context: Tracki
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+      // Inner ring spins independently — reads as an active data core, not a static icon.
+      ctx.save();
+      ctx.rotate(-obj.rotation * 2.4 - context.time / 500);
       ctx.beginPath();
-      ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2);
+      ctx.arc(0, 0, r * 0.3, 0, Math.PI * 1.5);
       ctx.stroke();
+      ctx.restore();
       break;
     }
     case 'drone': {
@@ -410,13 +503,28 @@ function drawObject(ctx: CanvasRenderingContext2D, obj: VObject, context: Tracki
   }
   ctx.restore();
 
-  if (context.quality.effectsEnabled && (obj.grabbedBy || obj.selectPulse > 0)) {
+  if (context.quality.effectsEnabled && (obj.grabbedBy || obj.selectPulse > 0 || hovered)) {
     ctx.save();
-    ctx.globalAlpha = obj.grabbedBy ? 0.5 : obj.selectPulse * 0.5;
+    ctx.globalAlpha = obj.grabbedBy ? 0.5 : hovered ? 0.35 : obj.selectPulse * 0.5;
     ctx.strokeStyle = '#eaffee';
     ctx.lineWidth = 1;
+    ctx.setLineDash(hovered && !obj.grabbedBy ? [3, 3] : []);
     ctx.beginPath();
-    ctx.arc(obj.x, obj.y, r + 10, 0, Math.PI * 2);
+    ctx.arc(obj.x, obj.y + bob, r + 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  if (obj.snapFlash > 0) {
+    ctx.save();
+    ctx.globalAlpha = obj.snapFlash * 0.7;
+    ctx.strokeStyle = baseColor;
+    ctx.shadowColor = baseColor;
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(obj.x, obj.y, r + 6 + (1 - obj.snapFlash) * 24, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -424,5 +532,5 @@ function drawObject(ctx: CanvasRenderingContext2D, obj: VObject, context: Tracki
   ctx.fillStyle = 'rgba(183,201,186,0.7)';
   ctx.font = '8px ui-monospace, monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(obj.type.toUpperCase(), obj.x, obj.y + r + 14);
+  ctx.fillText(obj.snapped ? `${obj.type.toUpperCase()} · LOCKED` : obj.type.toUpperCase(), obj.x, obj.y + r + 14);
 }

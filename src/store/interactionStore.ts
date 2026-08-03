@@ -6,6 +6,8 @@ export interface InteractionOptions {
   faceTracking: boolean;
   handTracking: boolean;
   targetReticle: boolean;
+  /** When on, a locked (red) reticle fires a projectile at the tracked forehead point. */
+  autoFire: boolean;
   handSkeleton: boolean;
   gestureRecognition: boolean;
   soundEffects: boolean;
@@ -39,6 +41,7 @@ const DEFAULT_OPTIONS: InteractionOptions = {
   faceTracking: true,
   handTracking: true,
   targetReticle: true,
+  autoFire: false,
   handSkeleton: true,
   gestureRecognition: true,
   soundEffects: false,
