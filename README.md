@@ -1,5 +1,9 @@
 # BLACK VEIL — Tactical Vision System
 
+**© 2026 Magno A. Frutuoso. Todos os direitos reservados.** Este repositório é disponibilizado
+publicamente para fins de portfólio e demonstração; visualização pública não concede nenhuma
+licença de uso, cópia, modificação ou redistribuição do código. Veja [LICENSE](./LICENSE).
+
 BLACK VEIL é uma experiência visual interativa com estética militar, obscura e futurista, construída
 sobre rastreamento de rosto e mãos em tempo real pela câmera do navegador. Todo o processamento —
 inferência do MediaPipe, suavização, reconhecimento de gestos e renderização — acontece inteiramente

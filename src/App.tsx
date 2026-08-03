@@ -33,8 +33,12 @@ const INITIAL_CAMERA_STATUS: CameraStatusInfo = {
 
 let logId = 0;
 
+// Set only via a build-time env var (VITE_SKIP_LOGIN=true), never committed as a default —
+// lets the public showcase deploy skip the credential gate while local/private builds keep it.
+const SKIP_LOGIN = import.meta.env.VITE_SKIP_LOGIN === 'true';
+
 export default function App() {
-  const [authenticated, setAuthenticated] = useState(() => hasValidSession());
+  const [authenticated, setAuthenticated] = useState(() => SKIP_LOGIN || hasValidSession());
   const [systemStarted, setSystemStarted] = useState(false);
   const [hudVisible, setHudVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -104,6 +108,7 @@ export default function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
+    if (SKIP_LOGIN) return;
     stageRef.current?.stopCamera();
     logout();
     setSystemStarted(false);
@@ -165,6 +170,7 @@ export default function App() {
             onToggleModulesPanel={() => setModulesPanelVisible((v) => !v)}
             onToggleSettingsPanel={() => setSettingsPanelVisible((v) => !v)}
             onLogout={handleLogout}
+            showLogout={!SKIP_LOGIN}
           />
         </div>
       )}

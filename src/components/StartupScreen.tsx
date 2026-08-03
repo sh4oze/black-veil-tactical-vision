@@ -45,6 +45,7 @@ export default function StartupScreen({ onStart }: StartupScreenProps) {
         </button>
 
         <p className="startup-footnote">DADOS BIOMÉTRICOS SIMULADOS · NENHUM DADO É ARMAZENADO OU TRANSMITIDO</p>
+        <p className="startup-footnote">© 2026 MAGNO A. FRUTUOSO · TODOS OS DIREITOS RESERVADOS</p>
       </div>
     </div>
   );

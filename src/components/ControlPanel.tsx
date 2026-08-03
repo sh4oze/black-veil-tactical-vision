@@ -20,6 +20,7 @@ interface ControlPanelProps {
   onToggleModulesPanel: () => void;
   onToggleSettingsPanel: () => void;
   onLogout: () => void;
+  showLogout?: boolean;
 }
 
 function ToggleButton({
@@ -64,6 +65,7 @@ export default function ControlPanel({
   onToggleModulesPanel,
   onToggleSettingsPanel,
   onLogout,
+  showLogout = true,
 }: ControlPanelProps) {
   return (
     <div className="control-panel">
@@ -89,9 +91,11 @@ export default function ControlPanel({
           ALTERNAR CÂMERA
         </button>
       )}
-      <button className="btn-tactical btn-toggle is-danger-outline" onClick={onLogout}>
-        SAIR
-      </button>
+      {showLogout && (
+        <button className="btn-tactical btn-toggle is-danger-outline" onClick={onLogout}>
+          SAIR
+        </button>
+      )}
     </div>
   );
 }
