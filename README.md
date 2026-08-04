@@ -98,10 +98,7 @@ conta como escape.
 ## Login e segurança
 
 Como o projeto não usa banco de dados nem backend por enquanto, o acesso é protegido por uma
-credencial única, validada inteiramente no navegador:
-
-- **Usuário (e-mail):** `zanfaust@gmail.com`
-- **Senha:** `QxNCgQ6ESk872RXT`
+credencial única, validada inteiramente no navegador (a credencial em si não é publicada aqui).
 
 A sessão dura 8 horas em `sessionStorage` (some ao fechar a aba) e pode ser encerrada a qualquer
 momento pelo botão **SAIR**. A senha nunca é comparada em texto puro — é validada como hash SHA-256
