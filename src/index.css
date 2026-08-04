@@ -374,6 +374,11 @@ button {
   color: #d7ffe0;
 }
 
+.hud-brand-sep {
+  color: var(--bv-cold-blue);
+  opacity: 0.8;
+}
+
 .hud-brand-dot {
   width: 7px;
   height: 7px;
@@ -538,17 +543,34 @@ button {
   letter-spacing: 0.08em;
   padding: 0.55rem 0.9rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
 }
 
 .btn-tactical:hover {
   border-color: rgba(125, 211, 92, 0.8);
   color: #eaffee;
+  box-shadow: 0 0 12px rgba(125, 211, 92, 0.2);
+}
+
+.btn-tactical:active {
+  transform: scale(0.97);
 }
 
 .btn-tactical:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-tactical:focus-visible,
+.login-toggle-visibility:focus-visible,
+.module-row:focus-visible,
+.option-switch:focus-visible,
+.panel-close-btn:focus-visible,
+.tactical-range:focus-visible {
+  outline: 1px solid var(--bv-military-green-bright);
+  outline-offset: 2px;
 }
 
 .btn-tactical-primary {
@@ -594,6 +616,16 @@ button {
   100% { transform: translate(1%, -1%); }
 }
 
+@keyframes bv-panel-in-right {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes bv-panel-in-center {
+  from { opacity: 0; transform: translateX(-50%) scale(0.98); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
 /* ---------------------------------- Interaction modules / settings panels ---------------------------------- */
 
 .panel-close-btn {
@@ -611,12 +643,12 @@ button {
 
 .modules-panel {
   position: absolute;
-  top: 50%;
+  top: 160px;
+  bottom: 150px;
   right: 16px;
-  transform: translateY(-50%);
   z-index: 30;
   width: 250px;
-  max-height: 74vh;
+  max-height: none;
   overflow-y: auto;
   background: rgba(6, 10, 8, 0.94);
   border: 1px solid rgba(125, 211, 92, 0.3);
@@ -624,6 +656,7 @@ button {
   padding: 0.8rem;
   font-size: 0.68rem;
   pointer-events: auto;
+  animation: bv-panel-in-right 0.18s ease;
 }
 
 .modules-panel-header,
@@ -713,18 +746,20 @@ button {
 
 .settings-panel {
   position: absolute;
-  top: 50%;
+  top: 72px;
+  bottom: 150px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 31;
   width: min(560px, 90vw);
-  max-height: 80vh;
+  max-height: none;
   overflow-y: auto;
   background: rgba(6, 10, 8, 0.96);
   border: 1px solid rgba(125, 211, 92, 0.3);
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.6);
   padding: 0.9rem 1rem;
   font-size: 0.7rem;
+  animation: bv-panel-in-center 0.18s ease;
 }
 
 .settings-panel-body {
@@ -803,6 +838,29 @@ button {
   color: #ff8f8f !important;
 }
 
+/* Themed scrollbars for the dark panels (Firefox + WebKit/Chromium) */
+.modules-panel,
+.settings-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 211, 92, 0.4) rgba(255, 255, 255, 0.04);
+}
+.modules-panel::-webkit-scrollbar,
+.settings-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.modules-panel::-webkit-scrollbar-track,
+.settings-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+.modules-panel::-webkit-scrollbar-thumb,
+.settings-panel::-webkit-scrollbar-thumb {
+  background: rgba(125, 211, 92, 0.4);
+}
+.modules-panel::-webkit-scrollbar-thumb:hover,
+.settings-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(125, 211, 92, 0.7);
+}
+
 /* ---------------------------------- Responsive ---------------------------------- */
 
 @media (max-width: 760px) {
@@ -824,9 +882,7 @@ button {
   }
   .modules-panel {
     width: 84vw;
-    right: 50%;
-    top: 50%;
-    transform: translate(50%, -50%);
+    right: 8vw;
   }
   .settings-panel-body {
     grid-template-columns: 1fr;

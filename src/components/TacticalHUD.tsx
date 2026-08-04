@@ -35,7 +35,7 @@ export default function TacticalHUD({ telemetry, cameraStatus, soundOn, showFps,
       <header className="hud-topbar">
         <div className="hud-brand">
           <span className="hud-brand-dot" />
-          BLACK VEIL // TACTICAL VISION SYSTEM
+          BLACK VEIL <span className="hud-brand-sep">·</span> TACTICAL VISION SYSTEM
         </div>
         <div className="hud-indicators">
           <span className={`hud-pill ${cameraStatus.status === 'active' ? 'ok' : 'muted'}`}>
